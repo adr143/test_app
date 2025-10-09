@@ -1,24 +1,17 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import React from 'react';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  // In a full app, you would check user session here
+  const loggedIn = false; // placeholder
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      {loggedIn ? (
+        <Stack.Screen name="(tabs)/report_form" />
+      ) : (
+        <Stack.Screen name="index" />
+      )}
+    </Stack>
   );
 }
