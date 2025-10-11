@@ -14,7 +14,7 @@ export default function TabsLayout() {
         headerRight: () => <Button title="Logout" onPress={handleLogout} />,
       }}
     >
-      <Tabs.Screen name="report_form" options={{ title: 'Report Form' }} />
+      <Tabs.Screen name="report_form" options={{ title: 'MoRe' }} />
       <Tabs.Screen name="report_history" options={{ title: 'Report History' }} />
     </Tabs>
   );
