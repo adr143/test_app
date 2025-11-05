@@ -7,11 +7,14 @@ import {
   Alert,
   Button,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 export default function ReportFormScreen() {
@@ -47,17 +50,14 @@ export default function ReportFormScreen() {
       const filename = `report_${Date.now()}.${ext || 'jpg'}`;
 
       const { data, error } = await supabase.storage
-        .from('reports') // bucket name
+        .from('reports')
         .upload(filename, blob, {
           cacheControl: '3600',
           upsert: false,
           contentType: 'image/jpeg',
         });
 
-      if (error) {
-        console.error('Storage upload error:', error);
-        throw error;
-      }
+      if (error) throw error;
 
       const { data: publicUrlData } = await supabase.storage
         .from('reports')
@@ -69,6 +69,7 @@ export default function ReportFormScreen() {
       throw err;
     }
   };
+
   const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Error', 'Please enter a description.');
@@ -90,23 +91,20 @@ export default function ReportFormScreen() {
         uploadedUrl = await uploadImageToSupabase(imageUri);
       }
 
-      const { data, error } = await supabase.from('reports').insert([
+      const { error } = await supabase.from('reports').insert([
         {
-          user_id: userId, // Link report to user
+          user_id: userId,
           type: category,
           description,
           location,
-          image: uploadedUrl, // link image to report
-          // responded defaults to false
+          image: uploadedUrl,
         },
       ]);
 
       if (error) {
-        console.error('Insert Error:', error);
         Alert.alert('Error', `Failed to submit report: ${error.message}`);
       } else {
         Alert.alert('Success', 'Report submitted successfully!');
-        // Reset form
         setDescription('');
         setCategory('general');
         setImageUri('');
@@ -120,54 +118,63 @@ export default function ReportFormScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Report Form</Text>
-
-      <Text style={styles.label}>Category</Text>
-      <Picker
-        selectedValue={category}
-        style={styles.picker}
-        onValueChange={(itemValue) => setCategory(itemValue)}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={styles.container}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 40 }}
       >
-        <Picker.Item label="General" value="general" />
-        <Picker.Item label="Maintenance" value="maintenance" />
-        <Picker.Item label="Incident" value="incident" />
-        <Picker.Item label="Accident" value="accident" />
-      </Picker>
+        <Text style={styles.title}>Report Form</Text>
 
-      <Text style={styles.label}>Location</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter location (optional)"
-        value={location}
-        onChangeText={setLocation}
-      />
+        <Text style={styles.label}>Category</Text>
+        <Picker
+          selectedValue={category}
+          style={styles.picker}
+          onValueChange={(itemValue) => setCategory(itemValue)}
+        >
+          <Picker.Item label="General" value="general" />
+          <Picker.Item label="Maintenance" value="maintenance" />
+          <Picker.Item label="Incident" value="incident" />
+          <Picker.Item label="Accident" value="accident" />
+        </Picker>
 
-      <Text style={styles.label}>Description</Text>
-      <TextInput
-        style={[styles.input, { height: 100 }]}
-        multiline
-        placeholder="Describe what you see..."
-        value={description}
-        onChangeText={setDescription}
-      />
+        <Text style={styles.label}>Location</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter location (optional)"
+          value={location}
+          onChangeText={setLocation}
+        />
 
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.preview} />
-      ) : null}
+        <Text style={styles.label}>Description</Text>
+        <TextInput
+          style={[styles.input, { height: 100 }]}
+          multiline
+          placeholder="Describe what you see..."
+          value={description}
+          onChangeText={setDescription}
+        />
 
-      <TouchableOpacity style={styles.imageButton} onPress={handleSelectImage}>
-        <Text style={styles.imageButtonText}>
-          {imageUri ? 'Retake Photo' : 'Take Photo'}
-        </Text>
-      </TouchableOpacity>
+        {imageUri ? (
+          <Image source={{ uri: imageUri }} style={styles.preview} />
+        ) : null}
 
-      <Button
-        title={uploading ? 'Submitting...' : 'Submit Report'}
-        onPress={handleSubmit}
-        disabled={uploading}
-      />
-    </View>
+        <TouchableOpacity style={styles.imageButton} onPress={handleSelectImage}>
+          <Text style={styles.imageButtonText}>
+            {imageUri ? 'Retake Photo' : 'Take Photo'}
+          </Text>
+        </TouchableOpacity>
+
+        <Button
+          title={uploading ? 'Submitting...' : 'Submit Report'}
+          onPress={handleSubmit}
+          disabled={uploading}
+        />
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
