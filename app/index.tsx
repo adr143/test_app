@@ -1,70 +1,76 @@
 import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function AuthScreen() {
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState(''); // optional for signUp
-  const [otp, setOtp] = useState('');
-  const [stage, setStage] = useState<'phone' | 'otp'>('phone');
   const [loading, setLoading] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
-  const [signing, setSigning] = useState(false);
 
-  // Handle Signup with Phone + Password (optional)
-  const handleSignUp = async () => {
-    if (!phone) return Alert.alert('Error', 'Enter your phone number');
-    setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      phone: phone.startsWith('+') ? phone : `+${phone}`,
-      password: password || 'temporary-password', // required for signup
-    });
-    setLoading(false);
+  useEffect(() => {
+    checkLoginStatus();
+  }, []);
 
-    if (error) {
-      console.error(error);
-      Alert.alert('Signup Error', error.message);
-    } else {
-      Alert.alert('OTP Sent', 'Check your phone for the verification code.');
-      setStage('otp');
+  const checkLoginStatus = async () => {
+    try {
+      const userPhone = await AsyncStorage.getItem('userPhone');
+      if (userPhone) {
+        setLoggedIn(true);
+      }
+    } catch (error) {
+      console.error('Error checking login status:', error);
     }
   };
 
-  // Handle OTP Login (Send OTP)
+  // Simple login - just store phone number
   const handleLogin = async () => {
-    if (!phone) return Alert.alert('Error', 'Enter your phone number');
-    setLoading(true);
-    const { data, error } = await supabase.auth.signInWithOtp({
-      phone: phone.startsWith('+') ? phone : `+${phone}`,
-    });
-    setLoading(false);
-
-    if (error) {
-      console.error(error);
-      Alert.alert('Login Error', error.message);
-    } else {
-      Alert.alert('OTP Sent', 'Please check your phone for the verification code.');
-      setStage('otp');
+    if (!phone.trim()) {
+      return Alert.alert('Error', 'Please enter your phone number');
     }
-  };
 
-  // Handle OTP Verification
-  const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) return Alert.alert('Error', 'Enter a valid 6-digit OTP');
     setLoading(true);
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: phone.startsWith('+') ? phone : `+${phone}`,
-      token: otp,
-      type: 'sms',
-    });
-    setLoading(false);
 
-    if (error) {
-      console.error(error);
-      Alert.alert('Verification Error', error.message);
-    } else {
+    try {
+      // Check if user profile exists, if not create one
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('phone', phone.trim())
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        // PGRST116 is "not found" error, which is okay
+        throw fetchError;
+      }
+
+      let userId;
+
+      if (!existingProfile) {
+        // Create new user profile
+        const { data: newProfile, error: insertError } = await supabase
+          .from('user_profiles')
+          .insert([{ phone: phone.trim() }])
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        userId = newProfile.id;
+      } else {
+        userId = existingProfile.id;
+      }
+
+      // Store user info locally
+      await AsyncStorage.setItem('userPhone', phone.trim());
+      await AsyncStorage.setItem('userId', userId);
+
       setLoggedIn(true);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      Alert.alert('Login Error', error.message || 'Failed to login');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,72 +81,24 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{signing ? 'Sign Up' : 'Login'}</Text>
-      {stage === 'phone' ? (
-        <>
-          <Text style={styles.subtitle}>
-            {signing
-              ? 'Register your phone number'
-              : 'Enter your phone number to receive an OTP'}
-          </Text>
+      <Text style={styles.title}>Login</Text>
+      <Text style={styles.subtitle}>
+        Enter your phone number to continue
+      </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Phone number (e.g. +13334445555)"
-            value={phone}
-            onChangeText={setPhone}
-            keyboardType="phone-pad"
-          />
+      <TextInput
+        style={styles.input}
+        placeholder="Phone number (e.g. 09123456789)"
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+      />
 
-          {signing && (
-            <TextInput
-              style={styles.input}
-              placeholder="Password (optional)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-          )}
-
-          <Button
-            title={loading ? 'Please wait...' : signing ? 'Sign Up' : 'Send OTP'}
-            onPress={signing ? handleSignUp : handleLogin}
-            disabled={loading}
-          />
-
-          <Text style={{ marginTop: 20 }}>
-            {signing ? 'Already have an account?' : "Don't have an account?"}
-          </Text>
-          <Button
-            title={signing ? 'Login' : 'Sign Up'}
-            onPress={() => setSigning(!signing)}
-          />
-        </>
-      ) : (
-        <>
-          <Text style={styles.subtitle}>Enter the 6-digit OTP sent to {phone}</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter OTP"
-            value={otp}
-            onChangeText={setOtp}
-            keyboardType="number-pad"
-            maxLength={6}
-          />
-
-          <Button
-            title={loading ? 'Verifying...' : 'Verify OTP'}
-            onPress={handleVerifyOtp}
-            disabled={loading}
-          />
-
-          <Button
-            title="Resend OTP"
-            onPress={handleLogin}
-            disabled={loading}
-          />
-        </>
-      )}
+      <Button
+        title={loading ? 'Please wait...' : 'Login'}
+        onPress={handleLogin}
+        disabled={loading}
+      />
     </View>
   );
 }

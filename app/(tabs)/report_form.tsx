@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
@@ -20,7 +21,6 @@ export default function ReportFormScreen() {
   const [location, setLocation] = useState('');
   const [uploading, setUploading] = useState(false);
 
-  // --- Step 1: Open Camera ---
   const handleSelectImage = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
@@ -38,13 +38,11 @@ export default function ReportFormScreen() {
     }
   };
 
-  // --- Step 2: Upload to Supabase Storage ---
   const uploadImageToSupabase = async (uri: string) => {
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
 
-      // Create a unique filename using timestamp
       const ext = uri.split('.').pop();
       const filename = `report_${Date.now()}.${ext || 'jpg'}`;
 
@@ -61,7 +59,7 @@ export default function ReportFormScreen() {
         throw error;
       }
 
-      const { data: publicUrlData } = supabase.storage
+      const { data: publicUrlData } = await supabase.storage
         .from('reports')
         .getPublicUrl(filename);
 
@@ -71,8 +69,6 @@ export default function ReportFormScreen() {
       throw err;
     }
   };
-
-  // --- Step 3: Submit Report ---
   const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Error', 'Please enter a description.');
@@ -81,6 +77,14 @@ export default function ReportFormScreen() {
     setUploading(true);
 
     try {
+      const userId = await AsyncStorage.getItem('userId');
+
+      if (!userId) {
+        Alert.alert('Error', 'You must be logged in to submit a report.');
+        setUploading(false);
+        return;
+      }
+
       let uploadedUrl = null;
       if (imageUri) {
         uploadedUrl = await uploadImageToSupabase(imageUri);
@@ -88,6 +92,7 @@ export default function ReportFormScreen() {
 
       const { data, error } = await supabase.from('reports').insert([
         {
+          user_id: userId, // Link report to user
           type: category,
           description,
           location,

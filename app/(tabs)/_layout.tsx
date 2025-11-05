@@ -1,11 +1,20 @@
-import { Tabs } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Tabs, useRouter } from 'expo-router';
 import React from 'react';
-import { Button } from 'react-native';
+import { Alert, Button } from 'react-native';
 
 export default function TabsLayout() {
-  const handleLogout = () => {
-    // placeholder for logout
-    console.log('Logout pressed');
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('userPhone');
+      await AsyncStorage.removeItem('userId');
+
+      router.replace('/');
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to logout: ' + err.message);
+    }
   };
 
   return (
