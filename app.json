@@ -44,6 +44,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "supabaseUrl": "https://fwugapivrojysjeqhgei.supabase.co",
+      "supabaseAnonKey": "sb_publishable_sVA7sCxn_bR8cMb0JmgMdA_JwFUIk5ZZ",
+      "router": {},
+      "eas": {
+        "projectId": "266775c2-04d2-42ea-8337-9322162685b9"
+      }
+    },
+    "owner": "adr143"
   }
 }

@@ -2,19 +2,19 @@ import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location'; // ✅ added
 import React, { useState } from 'react';
 import {
   Alert,
   Button,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
-  View,
-  KeyboardAvoidingView,
-  Platform,
+  TouchableOpacity
 } from 'react-native';
 
 export default function ReportFormScreen() {
@@ -22,6 +22,7 @@ export default function ReportFormScreen() {
   const [category, setCategory] = useState('general');
   const [imageUri, setImageUri] = useState('');
   const [location, setLocation] = useState('');
+  const [gpsLocation, setGpsLocation] = useState(''); // ✅ new field
   const [uploading, setUploading] = useState(false);
 
   const handleSelectImage = async () => {
@@ -41,33 +42,25 @@ export default function ReportFormScreen() {
     }
   };
 
-  const uploadImageToSupabase = async (uri: string) => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
-      const ext = uri.split('.').pop();
-      const filename = `report_${Date.now()}.${ext || 'jpg'}`;
-
-      const { data, error } = await supabase.storage
-        .from('reports')
-        .upload(filename, blob, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: 'image/jpeg',
-        });
-
-      if (error) throw error;
-
-      const { data: publicUrlData } = await supabase.storage
-        .from('reports')
-        .getPublicUrl(filename);
-
-      return publicUrlData.publicUrl;
-    } catch (err: any) {
-      console.error('Upload error:', err.message);
-      throw err;
+  // ✅ new: get GPS + reverse geocode
+  const getGpsLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Location permission is required.');
+      return;
     }
+
+    const position = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = position.coords;
+
+    const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
+
+    const formattedAddress = address
+      ? `${address.name || ''} ${address.street || ''}, ${address.city || ''}, ${address.region || ''}, ${address.country || ''}`
+      : `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
+    setGpsLocation(formattedAddress.trim());
+    setLocation(formattedAddress.trim());
   };
 
   const handleSubmit = async () => {
@@ -75,6 +68,12 @@ export default function ReportFormScreen() {
       Alert.alert('Error', 'Please enter a description.');
       return;
     }
+
+    if (!gpsLocation) {
+      Alert.alert('Error', 'Please get your GPS location first.');
+      return;
+    }
+
     setUploading(true);
 
     try {
@@ -86,18 +85,14 @@ export default function ReportFormScreen() {
         return;
       }
 
-      let uploadedUrl = null;
-      if (imageUri) {
-        uploadedUrl = await uploadImageToSupabase(imageUri);
-      }
-
       const { error } = await supabase.from('reports').insert([
         {
           user_id: userId,
           type: category,
           description,
           location,
-          image: uploadedUrl,
+          gps_location: gpsLocation,
+          image: imageUri,
         },
       ]);
 
@@ -109,6 +104,7 @@ export default function ReportFormScreen() {
         setCategory('general');
         setImageUri('');
         setLocation('');
+        setGpsLocation('');
       }
     } catch (err: any) {
       Alert.alert('Upload Error', err.message || 'Failed to upload image');
@@ -148,6 +144,10 @@ export default function ReportFormScreen() {
           value={location}
           onChangeText={setLocation}
         />
+
+        <TouchableOpacity style={styles.imageButton} onPress={getGpsLocation}>
+          <Text style={styles.imageButtonText}>Get GPS Location</Text>
+        </TouchableOpacity>
 
         <Text style={styles.label}>Description</Text>
         <TextInput
