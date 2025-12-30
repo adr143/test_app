@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
+import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location'; // ✅ added
 import React, { useState } from 'react';
@@ -22,7 +23,7 @@ export default function ReportFormScreen() {
   const [category, setCategory] = useState('general');
   const [imageUri, setImageUri] = useState('');
   const [location, setLocation] = useState('');
-  const [gpsLocation, setGpsLocation] = useState(''); // ✅ new field
+  const [gpsLocation, setGpsLocation] = useState(''); 
   const [uploading, setUploading] = useState(false);
 
   const handleSelectImage = async () => {
@@ -32,17 +33,44 @@ export default function ReportFormScreen() {
       return;
     }
 
+    const uploadPhoto = async (base64_file: string, name: string) => {
+      const fileBytes = decode(base64_file);
+      const { data, error } = await supabase.storage
+        .from('reports')
+        .upload(`public/${name}`, fileBytes, {
+          contentType: 'image/png',
+        });
+
+
+      if (error) {
+        return '';
+      }
+
+      const { data: photo } = supabase.storage
+        .from('reports')
+        .getPublicUrl(data.path);
+
+      return photo.publicUrl || '';
+    };
+
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.7,
+      allowsEditing: false,
+      base64: true,
     });
 
-    if (!result.canceled && result.assets?.length > 0) {
-      setImageUri(result.assets[0].uri);
-    }
+    if (result.canceled || !result.assets?.length) return;
+    const asset = result.assets[0];
+    const uri = asset.uri || '';
+    const name = uri.split('/').pop() || '';
+    const base64_data = asset.base64 as string;
+
+    const imageUrl = await uploadPhoto(base64_data, name);
+    setImageUri(uri);
   };
 
-  // ✅ new: get GPS + reverse geocode
+
   const getGpsLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {

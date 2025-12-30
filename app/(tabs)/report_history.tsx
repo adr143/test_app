@@ -5,17 +5,20 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function ReportHistoryScreen() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     initializeUserAndFetch();
@@ -118,7 +121,12 @@ export default function ReportHistoryScreen() {
   };
 
   const renderItem = ({ item }: { item: any }) => (
-    <View style={styles.card}>
+    <Pressable
+      onPress={() =>
+        router.push({ pathname: '(tabs)/report_detail', params: { id: item.id } })
+      }
+      style={({ pressed }) => [styles.card, pressed ? { opacity: 0.8 } : null]}
+    >
       <Text style={styles.category}>{item.type || 'General'}</Text>
       <Text style={styles.description}>{item.description}</Text>
 
@@ -159,7 +167,7 @@ export default function ReportHistoryScreen() {
       <Text style={styles.date}>
         {new Date(item.created_at).toLocaleString()}
       </Text>
-    </View>
+    </Pressable>
   );
 
   if (loading) {
