@@ -1,17 +1,17 @@
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Pressable,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    View,
+} from 'react-native';
 
 export default function ReportHistoryScreen() {
   const [reports, setReports] = useState<any[]>([]);
@@ -123,7 +123,7 @@ export default function ReportHistoryScreen() {
   const renderItem = ({ item }: { item: any }) => (
     <Pressable
       onPress={() =>
-        router.push({ pathname: '(tabs)/report_detail', params: { id: item.id } })
+        router.push({ pathname: '(tabs)/report_detail', params: { id: String(item.id) } })
       }
       style={({ pressed }) => [styles.card, pressed ? { opacity: 0.8 } : null]}
     >

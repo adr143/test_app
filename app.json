@@ -39,7 +39,8 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -48,6 +49,7 @@
     "extra": {
       "supabaseUrl": "https://fwugapivrojysjeqhgei.supabase.co",
       "supabaseAnonKey": "sb_publishable_sVA7sCxn_bR8cMb0JmgMdA_JwFUIk5ZZ",
+      "openrouterApiKey": "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",
       "router": {},
       "eas": {
         "projectId": "266775c2-04d2-42ea-8337-9322162685b9"
